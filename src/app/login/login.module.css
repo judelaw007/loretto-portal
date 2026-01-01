@@ -1,0 +1,154 @@
+.container {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--spacing-2xl);
+  background: var(--white);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  background: var(--primary);
+  color: var(--white);
+  border-radius: 50%;
+  margin-bottom: var(--spacing-lg);
+}
+
+.header h1 {
+  font-size: 1.75rem;
+  margin-bottom: var(--spacing-xs);
+}
+
+.header p {
+  color: var(--gray-500);
+  margin: 0;
+}
+
+.form {
+  max-width: 400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 12px;
+  color: var(--gray-400);
+  pointer-events: none;
+}
+
+.inputWithIcon {
+  padding-left: 40px !important;
+  padding-right: 40px !important;
+}
+
+.togglePassword {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--gray-400);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.togglePassword:hover {
+  color: var(--gray-600);
+}
+
+.forgotPassword {
+  text-align: right;
+  margin-bottom: var(--spacing-lg);
+}
+
+.forgotPassword a {
+  font-size: 0.875rem;
+  color: var(--primary);
+}
+
+.footer {
+  text-align: center;
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-xl);
+  border-top: 1px solid var(--gray-200);
+}
+
+.footer p {
+  color: var(--gray-500);
+  margin: 0;
+}
+
+.footer a {
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--spacing-2xl);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: var(--white);
+}
+
+.info h2 {
+  color: var(--white);
+  font-size: 2rem;
+  margin-bottom: var(--spacing-xl);
+}
+
+.info ul {
+  list-style: none;
+}
+
+.info li {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) 0;
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.info li svg {
+  color: var(--secondary);
+}
+
+@media (max-width: 968px) {
+  .container {
+    grid-template-columns: 1fr;
+  }
+
+  .info {
+    display: none;
+  }
+
+  .card {
+    padding: var(--spacing-xl);
+  }
+}
