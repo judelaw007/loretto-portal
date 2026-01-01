@@ -2,17 +2,24 @@
 // LORETTO SCHOOL PORTAL - TYPE DEFINITIONS
 // ============================================
 
-// User Roles
-export type UserRole = 'super_admin' | 'admin' | 'parent' | 'student';
+// Re-export types from database schema
+export type {
+  UserRole,
+  AdminType,
+  ClassLevel,
+  AppTargetType,
+  PaymentMethod,
+} from '@/lib/schema';
 
-// Class Levels
-export type ClassLevel =
-  | 'creche'
-  | 'preschool_1' | 'preschool_2' | 'preschool_3'
-  | 'grade_1' | 'grade_2' | 'grade_3' | 'grade_4' | 'grade_5' | 'grade_6'
-  | 'jss_1' | 'jss_2' | 'jss_3'
-  | 'sss_1' | 'sss_2' | 'sss_3';
+// Import types from database for use
+import type {
+  UserRole,
+  ClassLevel,
+  AdminType,
+  AppTargetType,
+} from '@/lib/schema';
 
+// Class level metadata
 export const CLASS_LEVELS: { value: ClassLevel; label: string; category: string }[] = [
   { value: 'creche', label: 'Creche', category: 'Early Years' },
   { value: 'preschool_1', label: 'Preschool 1', category: 'Preschool' },
@@ -32,10 +39,11 @@ export const CLASS_LEVELS: { value: ClassLevel; label: string; category: string 
   { value: 'sss_3', label: 'SSS 3', category: 'Senior Secondary' },
 ];
 
-// Admin Types (for role-specific app allocation)
-export type AdminType = 'teacher' | 'accountant' | 'registrar' | 'principal' | 'general';
+// ============================================
+// USER TYPES
+// ============================================
 
-// Base User Interface
+// Base User Interface (matches database schema)
 export interface User {
   id: string;
   phone: string;
@@ -43,11 +51,27 @@ export interface User {
   role: UserRole;
   firstName: string;
   lastName: string;
-  email?: string;
-  profileImage?: string;
+  email: string | null;
+  profileImage: string | null;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Admin specific fields
+  adminType: AdminType | null;
+  department: string | null;
+  assignedClasses: string[] | null;
+
+  // Student specific fields
+  classLevel: ClassLevel | null;
+  studentId: string | null;
+  dateOfBirth: Date | null;
+  enrollmentDate: Date | null;
+  section: string | null;
+
+  // Parent specific fields
+  occupation: string | null;
+  address: string | null;
 }
 
 // Super Admin - Full system control
@@ -59,76 +83,51 @@ export interface SuperAdmin extends User {
 export interface Admin extends User {
   role: 'admin';
   adminType: AdminType;
-  department?: string;
-  assignedClasses?: ClassLevel[]; // For teachers
-  employeeId?: string;
 }
 
-// Parent - Can have multiple children
+// Parent - Can have multiple children (linked via junction table)
 export interface Parent extends User {
   role: 'parent';
-  occupation?: string;
-  address?: string;
-  childrenIds: string[]; // References to Student IDs
 }
 
 // Student
 export interface Student extends User {
   role: 'student';
   classLevel: ClassLevel;
-  studentId: string; // School-issued ID
-  parentIds: string[]; // References to Parent IDs
-  dateOfBirth?: string;
-  enrollmentDate: string;
-  section?: string; // e.g., "A", "B", "C"
+  studentId: string;
 }
 
 // ============================================
 // APP/FEATURE SYSTEM
 // ============================================
 
-// Target audience for an app
-export type AppTargetType = 'admin' | 'client';
-
 // App Definition - A feature/module in the system
 export interface App {
   id: string;
   name: string;
-  slug: string; // URL-friendly identifier
+  slug: string;
   description: string;
-  icon: string; // Icon name or URL
-  targetType: AppTargetType; // 'admin' or 'client'
-  route: string; // The route/path for this app
-  isSystemApp: boolean; // System apps can't be deleted
+  icon: string;
+  targetType: AppTargetType;
+  route: string;
+  isSystemApp: boolean;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Permission - Links apps to users or groups
 export interface AppPermission {
   id: string;
   appId: string;
-
-  // Permission can be granted to:
-  // 1. Specific user
-  userId?: string;
-
-  // 2. All users of a role
-  role?: UserRole;
-
-  // 3. All admins of a specific type
-  adminType?: AdminType;
-
-  // 4. All students/parents of specific classes
-  classLevels?: ClassLevel[];
-
-  // 5. Combination of role + class (e.g., parents of JSS1 students)
-  targetRole?: 'parent' | 'student';
-
-  grantedBy: string; // User ID of super admin who granted
-  grantedAt: string;
-  expiresAt?: string; // Optional expiration
+  userId: string | null;
+  role: UserRole | null;
+  adminType: AdminType | null;
+  classLevels: string[] | null;
+  targetRole: string | null;
+  grantedById: string;
+  grantedAt: Date;
+  expiresAt: Date | null;
 }
 
 // ============================================
@@ -137,18 +136,18 @@ export interface AppPermission {
 
 export interface AcademicSession {
   id: string;
-  name: string; // e.g., "2024/2025"
-  startDate: string;
-  endDate: string;
+  name: string;
+  startDate: Date;
+  endDate: Date;
   isCurrent: boolean;
 }
 
 export interface Term {
   id: string;
   sessionId: string;
-  name: string; // "First Term", "Second Term", "Third Term"
-  startDate: string;
-  endDate: string;
+  name: string;
+  startDate: Date;
+  endDate: Date;
   isCurrent: boolean;
 }
 
@@ -160,8 +159,9 @@ export interface FeeStructure {
   id: string;
   classLevel: ClassLevel;
   termId: string;
+  sessionId: string;
   tuitionFee: number;
-  otherFees: { name: string; amount: number }[];
+  otherFees: unknown; // JSON
   totalAmount: number;
 }
 
@@ -170,11 +170,12 @@ export interface FeePayment {
   studentId: string;
   feeStructureId: string;
   amountPaid: number;
-  paymentDate: string;
+  paymentDate: Date;
   paymentMethod: 'cash' | 'bank_transfer' | 'card' | 'online';
   receiptNumber: string;
-  recordedBy: string; // Admin ID
-  notes?: string;
+  recordedById: string;
+  notes: string | null;
+  createdAt: Date;
 }
 
 // ============================================
@@ -186,11 +187,11 @@ export interface Announcement {
   title: string;
   content: string;
   authorId: string;
-  targetRoles?: UserRole[];
-  targetClasses?: ClassLevel[];
+  targetRoles: string[] | null;
+  targetClasses: string[] | null;
   isPinned: boolean;
-  publishedAt: string;
-  expiresAt?: string;
+  publishedAt: Date;
+  expiresAt: Date | null;
 }
 
 // ============================================
@@ -201,7 +202,7 @@ export interface Subject {
   id: string;
   name: string;
   code: string;
-  classLevels: ClassLevel[]; // Which classes have this subject
+  classLevels: string[] | null;
 }
 
 export interface Result {
@@ -209,13 +210,13 @@ export interface Result {
   studentId: string;
   subjectId: string;
   termId: string;
-  continuousAssessment: number; // CA score
+  continuousAssessment: number;
   examScore: number;
   totalScore: number;
   grade: string;
-  remarks?: string;
-  recordedBy: string; // Teacher ID
-  recordedAt: string;
+  remarks: string | null;
+  recordedById: string;
+  recordedAt: Date;
 }
 
 // ============================================
@@ -226,18 +227,18 @@ export interface Session {
   id: string;
   userId: string;
   token: string;
-  expiresAt: string;
-  createdAt: string;
+  expiresAt: Date;
+  createdAt: Date;
 }
 
 export interface OTPRequest {
   id: string;
   phone: string;
   otp: string;
-  purpose: 'password_reset' | 'verification';
-  expiresAt: string;
+  purpose: string;
+  expiresAt: Date;
   isUsed: boolean;
-  createdAt: string;
+  createdAt: Date;
 }
 
 // ============================================
