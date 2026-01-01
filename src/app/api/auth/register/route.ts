@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { hashPassword, normalizePhoneNumber, isValidPhoneNumber, isValidPassword } from '@/lib/auth';
 import { Users, seedDefaultData } from '@/lib/database';
-import type { Parent, Student, ClassLevel } from '@/types';
+import type { ClassLevel } from '@/types';
 
 export async function POST(request: NextRequest) {
   try {
@@ -89,57 +89,48 @@ export async function POST(request: NextRequest) {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       phone: normalizedPhone,
-      email: email?.trim() || undefined,
+      email: email?.trim() || null,
       passwordHash,
       role,
       isActive: true,
     };
 
+    // Find child to link if parent is registering with childStudentId
+    let childToLink: string | null = null;
+
     if (role === 'student') {
-      // Find parent if childStudentId provided (for future linking)
       userData = {
         ...userData,
         classLevel: classLevel as ClassLevel,
         studentId: studentId.trim(),
-        dateOfBirth: dateOfBirth || undefined,
-        enrollmentDate: new Date().toISOString(),
-        parentIds: [],
-      } as Omit<Student, 'id' | 'createdAt' | 'updatedAt'>;
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+        enrollmentDate: new Date(),
+      };
     } else {
       // Parent
-      let childrenIds: string[] = [];
+      userData = {
+        ...userData,
+        occupation: occupation?.trim() || null,
+        address: address?.trim() || null,
+      };
 
-      // If child student ID provided, find and link
+      // If child student ID provided, find the child
       if (childStudentId) {
         const students = await Users.getByRole('student');
         const childStudent = students.find(
-          (s) => (s as Student).studentId === childStudentId.trim()
+          (s) => s.studentId === childStudentId.trim()
         );
         if (childStudent) {
-          childrenIds.push(childStudent.id);
+          childToLink = childStudent.id;
         }
       }
-
-      userData = {
-        ...userData,
-        occupation: occupation?.trim() || undefined,
-        address: address?.trim() || undefined,
-        childrenIds,
-      } as Omit<Parent, 'id' | 'createdAt' | 'updatedAt'>;
     }
 
     const newUser = await Users.create(userData);
 
-    // If parent linked to a child, update child's parentIds
-    if (role === 'parent' && (userData as Parent).childrenIds?.length > 0) {
-      for (const childId of (userData as Parent).childrenIds) {
-        const child = await Users.getById(childId) as Student;
-        if (child) {
-          await Users.update(childId, {
-            parentIds: [...(child.parentIds || []), newUser.id],
-          });
-        }
-      }
+    // If parent linked to a child, create the relationship in junction table
+    if (role === 'parent' && childToLink) {
+      await Users.linkParentChild(newUser.id, childToLink);
     }
 
     // Don't send password hash to client

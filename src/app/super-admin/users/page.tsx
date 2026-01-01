@@ -207,7 +207,7 @@ export default function UsersPage() {
                     )}
                     {user.role === 'parent' && (
                       <span className="text-sm">
-                        {(user as Parent).childrenIds?.length || 0} children
+                        Parent Account
                       </span>
                     )}
                   </td>

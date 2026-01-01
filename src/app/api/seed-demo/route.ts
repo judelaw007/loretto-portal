@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     // Check and create Super Admin
     const existingSuperAdmin = await Users.getByPhone('+2348012345678');
     if (!existingSuperAdmin) {
-      const superAdmin = await Users.create({
+      await Users.create({
         firstName: 'Super',
         lastName: 'Admin',
         phone: '+2348012345678',
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
         department: 'Mathematics',
         assignedClasses: ['jss_1', 'jss_2', 'jss_3'],
         isActive: true,
-      } as any);
+      });
       createdUsers.push({ role: 'admin (teacher)', phone: '+2348011111111', name: 'John Teacher' });
     }
 
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
         adminType: 'accountant',
         department: 'Finance',
         isActive: true,
-      } as any);
+      });
       createdUsers.push({ role: 'admin (accountant)', phone: '+2348022222222', name: 'Mary Accountant' });
     }
 
@@ -74,11 +74,10 @@ export async function POST(request: NextRequest) {
         role: 'student',
         classLevel: 'jss_1',
         studentId: 'LOR-2024-001',
-        dateOfBirth: '2012-05-15',
-        enrollmentDate: new Date().toISOString(),
-        parentIds: [],
+        dateOfBirth: new Date('2012-05-15'),
+        enrollmentDate: new Date(),
         isActive: true,
-      } as any);
+      });
       student1Id = student1.id;
       createdUsers.push({ role: 'student (JSS1)', phone: '+2348033333333', name: 'David Student', studentId: 'LOR-2024-001' });
     }
@@ -96,11 +95,10 @@ export async function POST(request: NextRequest) {
         role: 'student',
         classLevel: 'grade_3',
         studentId: 'LOR-2024-002',
-        dateOfBirth: '2015-08-20',
-        enrollmentDate: new Date().toISOString(),
-        parentIds: [],
+        dateOfBirth: new Date('2015-08-20'),
+        enrollmentDate: new Date(),
         isActive: true,
-      } as any);
+      });
       student2Id = student2.id;
       createdUsers.push({ role: 'student (Grade 3)', phone: '+2348044444444', name: 'Sarah Student', studentId: 'LOR-2024-002' });
     }
@@ -108,8 +106,6 @@ export async function POST(request: NextRequest) {
     // Check and create Parent (linked to both students)
     const existingParent = await Users.getByPhone('+2348055555555');
     if (!existingParent) {
-      const childrenIds = [student1Id, student2Id].filter(Boolean) as string[];
-
       const parent = await Users.create({
         firstName: 'Peter',
         lastName: 'Parent',
@@ -119,18 +115,15 @@ export async function POST(request: NextRequest) {
         role: 'parent',
         occupation: 'Business Owner',
         address: '25 Wali Street, Port Harcourt',
-        childrenIds,
         isActive: true,
-      } as any);
+      });
 
-      // Update students to link to parent
-      for (const childId of childrenIds) {
-        const child = await Users.getById(childId);
-        if (child) {
-          await Users.update(childId, {
-            parentIds: [...((child as any).parentIds || []), parent.id],
-          });
-        }
+      // Link parent to students using the junction table
+      if (student1Id) {
+        await Users.linkParentChild(parent.id, student1Id);
+      }
+      if (student2Id) {
+        await Users.linkParentChild(parent.id, student2Id);
       }
 
       createdUsers.push({ role: 'parent', phone: '+2348055555555', name: 'Peter Parent', children: ['David', 'Sarah'] });
