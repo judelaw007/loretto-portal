@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { Apps, seedDefaultData } from '@/lib/database';
+import { Apps, AppPermissions, seedDefaultData } from '@/lib/database';
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,6 +23,24 @@ export async function GET(request: NextRequest) {
     }
 
     const apps = await Apps.getAll();
+
+    // Check if permissions should be included
+    const { searchParams } = new URL(request.url);
+    const includePermissions = searchParams.get('includePermissions') === 'true';
+
+    if (includePermissions && session.user.role === 'super_admin') {
+      // Fetch all permissions and attach to apps
+      const allPermissions = await AppPermissions.getAll();
+      const appsWithPermissions = apps.map(app => ({
+        ...app,
+        permissions: allPermissions.filter(p => p.appId === app.id),
+      }));
+
+      return NextResponse.json({
+        success: true,
+        apps: appsWithPermissions,
+      });
+    }
 
     return NextResponse.json({
       success: true,

@@ -179,3 +179,133 @@
   padding-top: var(--spacing-lg);
   border-top: 1px solid var(--gray-200);
 }
+
+/* Section description */
+.sectionDesc {
+  font-size: 0.875rem;
+  color: var(--gray-500);
+  margin-bottom: var(--spacing-md);
+  margin-top: -0.5rem;
+}
+
+/* App status */
+.appStatus {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.appDesc {
+  font-size: 0.8rem;
+  color: var(--gray-500);
+  margin-bottom: var(--spacing-sm);
+  line-height: 1.4;
+}
+
+/* Allocations */
+.allocations {
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm);
+  background: var(--gray-50);
+  border-radius: var(--radius-md);
+}
+
+.allocationLabel {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--gray-500);
+  margin-bottom: var(--spacing-xs);
+}
+
+.allocationTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.allocationTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--primary-light);
+  color: var(--primary);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.removeTag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.7;
+}
+
+.removeTag:hover {
+  opacity: 1;
+}
+
+.noAllocations {
+  font-size: 0.8rem;
+  color: var(--gray-400);
+  font-style: italic;
+}
+
+/* Empty state */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2xl);
+  background: var(--gray-50);
+  border-radius: var(--radius-lg);
+  color: var(--gray-400);
+}
+
+.emptyState p {
+  margin-top: var(--spacing-sm);
+  color: var(--gray-500);
+}
+
+/* Allocation type toggle */
+.allocationTypeToggle {
+  display: flex;
+  background: var(--gray-100);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  margin-bottom: var(--spacing-lg);
+}
+
+.toggleBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--gray-500);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.toggleBtn:hover {
+  color: var(--gray-700);
+}
+
+.toggleBtn.active {
+  background: var(--white);
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
