@@ -4,13 +4,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import DashboardLayout from '@/components/DashboardLayout';
-import { Icons, getIcon } from '@/components/icons';
+import { Icons } from '@/components/icons';
 import styles from './super-admin.module.css';
-import type { User, App } from '@/types';
+import type { User } from '@/types';
 
 interface DashboardData {
   user: User;
-  apps: App[];
   stats: {
     totalUsers: number;
     totalStudents: number;
@@ -52,7 +51,6 @@ export default function SuperAdminDashboard() {
 
       setData({
         user: userData.user,
-        apps: userData.apps,
         stats: statsData.success ? statsData.stats : {
           totalUsers: 0,
           totalStudents: 0,
@@ -78,16 +76,7 @@ export default function SuperAdminDashboard() {
     );
   }
 
-  const { user, apps, stats } = data;
-
-  const quickActions = [
-    { name: 'Add Admin', href: '/super-admin/users/add?role=admin', icon: 'user-plus', color: 'var(--primary)' },
-    { name: 'Add Student', href: '/super-admin/users/add?role=student', icon: 'user-plus', color: 'var(--success)' },
-    { name: 'Add Parent', href: '/super-admin/users/add?role=parent', icon: 'user-plus', color: 'var(--info)' },
-    { name: 'Manage Apps', href: '/super-admin/manage-apps', icon: 'layers', color: 'var(--secondary)' },
-    { name: 'Permissions', href: '/super-admin/permissions', icon: 'shield', color: 'var(--warning)' },
-    { name: 'Announcements', href: '/super-admin/announcements', icon: 'megaphone', color: 'var(--accent)' },
-  ];
+  const { user, stats } = data;
 
   return (
     <DashboardLayout title="Super Admin Dashboard">
@@ -145,36 +134,40 @@ export default function SuperAdminDashboard() {
             <span className={styles.statLabel}>Admins</span>
           </div>
         </div>
-        <div className={styles.statCard}>
-          <div className={styles.statIcon} style={{ background: 'var(--secondary)' }}>
-            <Icons.Grid size={24} />
-          </div>
-          <div className={styles.statInfo}>
-            <span className={styles.statValue}>{stats.totalApps}</span>
-            <span className={styles.statLabel}>Active Apps</span>
-          </div>
-        </div>
       </div>
 
       {/* Quick Actions */}
       <section className={styles.section}>
         <h3>Quick Actions</h3>
         <div className={styles.actionsGrid}>
-          {quickActions.map((action) => {
-            const Icon = getIcon(action.icon);
-            return (
-              <Link key={action.name} href={action.href} className={styles.actionCard}>
-                <div className={styles.actionIcon} style={{ background: action.color }}>
-                  <Icon size={24} />
-                </div>
-                <span>{action.name}</span>
-              </Link>
-            );
-          })}
+          <Link href="/super-admin/users/add?role=admin" className={styles.actionCard}>
+            <div className={styles.actionIcon} style={{ background: 'var(--primary)' }}>
+              <Icons.UserPlus size={24} />
+            </div>
+            <span>Add Admin</span>
+          </Link>
+          <Link href="/super-admin/users/add?role=parent" className={styles.actionCard}>
+            <div className={styles.actionIcon} style={{ background: 'var(--info)' }}>
+              <Icons.UserPlus size={24} />
+            </div>
+            <span>Add Parent</span>
+          </Link>
+          <Link href="/super-admin/manage-apps" className={styles.actionCard}>
+            <div className={styles.actionIcon} style={{ background: 'var(--secondary)' }}>
+              <Icons.Grid size={24} />
+            </div>
+            <span>Manage Apps</span>
+          </Link>
+          <Link href="/super-admin/permissions" className={styles.actionCard}>
+            <div className={styles.actionIcon} style={{ background: 'var(--warning)' }}>
+              <Icons.Shield size={24} />
+            </div>
+            <span>Permissions</span>
+          </Link>
         </div>
       </section>
 
-      {/* Management Sections */}
+      {/* Management Cards */}
       <div className={styles.managementGrid}>
         <section className={`${styles.section} ${styles.managementCard}`}>
           <div className={styles.sectionHeader}>
@@ -184,36 +177,39 @@ export default function SuperAdminDashboard() {
               <Icons.ChevronRight size={16} />
             </Link>
           </div>
+          <p className={styles.managementDesc}>
+            Manage admins, parents, and view student accounts.
+          </p>
           <div className={styles.managementActions}>
-            <Link href="/super-admin/users?role=student" className="btn btn-outline btn-sm">
-              <Icons.User size={16} />
-              Students
+            <Link href="/super-admin/users?role=admin" className="btn btn-outline btn-sm">
+              <Icons.Shield size={16} />
+              Admins
             </Link>
             <Link href="/super-admin/users?role=parent" className="btn btn-outline btn-sm">
               <Icons.Users size={16} />
               Parents
             </Link>
-            <Link href="/super-admin/users?role=admin" className="btn btn-outline btn-sm">
-              <Icons.Shield size={16} />
-              Admins
+            <Link href="/super-admin/users?role=student" className="btn btn-outline btn-sm">
+              <Icons.User size={16} />
+              Students
             </Link>
           </div>
         </section>
 
         <section className={`${styles.section} ${styles.managementCard}`}>
           <div className={styles.sectionHeader}>
-            <h3>App & Permission Management</h3>
+            <h3>App Management</h3>
             <Link href="/super-admin/manage-apps" className={styles.viewAll}>
               Manage
               <Icons.ChevronRight size={16} />
             </Link>
           </div>
           <p className={styles.managementDesc}>
-            Create, edit, and manage apps. Assign permissions to users, roles, or specific classes.
+            Create apps and assign permissions to users, roles, or classes.
           </p>
           <div className={styles.managementActions}>
             <Link href="/super-admin/manage-apps" className="btn btn-primary btn-sm">
-              <Icons.Layers size={16} />
+              <Icons.Grid size={16} />
               Manage Apps
             </Link>
             <Link href="/super-admin/permissions" className="btn btn-outline btn-sm">
@@ -223,35 +219,6 @@ export default function SuperAdminDashboard() {
           </div>
         </section>
       </div>
-
-      {/* All Apps */}
-      <section className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <h3>All Apps</h3>
-          <Link href="/super-admin/manage-apps" className={styles.viewAll}>
-            Manage Apps
-            <Icons.ChevronRight size={16} />
-          </Link>
-        </div>
-        <div className={styles.appsGrid}>
-          {apps.map((app) => {
-            const Icon = getIcon(app.icon);
-            return (
-              <div key={app.id} className={styles.appCard}>
-                <div className={styles.appIcon}>
-                  <Icon size={24} />
-                </div>
-                <div className={styles.appInfo}>
-                  <h4>{app.name}</h4>
-                  <span className={`badge ${app.targetType === 'admin' ? 'badge-primary' : 'badge-secondary'}`}>
-                    {app.targetType === 'admin' ? 'Admin' : 'Client'}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
     </DashboardLayout>
   );
 }

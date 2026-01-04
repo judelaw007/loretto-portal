@@ -2,71 +2,65 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Icons, getIcon } from '@/components/icons';
 import styles from './manage-apps.module.css';
-import type { App } from '@/types';
+import type { App, User, ClassLevel, AdminType } from '@/types';
+import { CLASS_LEVELS } from '@/types';
+
+interface AppPermission {
+  id: string;
+  appId: string;
+  userId: string | null;
+  role: string | null;
+  adminType: string | null;
+  classLevels: string[] | null;
+  targetRole: string | null;
+}
+
+interface AppWithPermissions extends App {
+  permissions: AppPermission[];
+}
 
 export default function ManageAppsPage() {
   const router = useRouter();
-  const [apps, setApps] = useState<App[]>([]);
+  const [apps, setApps] = useState<AppWithPermissions[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    slug: '',
-    description: '',
-    icon: 'grid',
-    targetType: 'admin' as 'admin' | 'client',
-    route: '',
+  const [selectedApp, setSelectedApp] = useState<AppWithPermissions | null>(null);
+  const [showAllocationModal, setShowAllocationModal] = useState(false);
+  const [allocationType, setAllocationType] = useState<'individual' | 'group'>('group');
+  const [allocationData, setAllocationData] = useState({
+    userId: '',
+    groupType: '', // 'all_parents', 'all_students', 'all_admins', 'class_students', 'class_parents', 'admin_type'
+    classLevel: '' as ClassLevel | '',
+    adminType: '' as AdminType | '',
   });
 
   useEffect(() => {
-    fetchApps();
+    fetchData();
   }, []);
 
-  const fetchApps = async () => {
+  const fetchData = async () => {
     try {
-      const res = await fetch('/api/admin/apps');
-      const data = await res.json();
+      const [appsRes, usersRes] = await Promise.all([
+        fetch('/api/admin/apps?includePermissions=true'),
+        fetch('/api/admin/users'),
+      ]);
 
-      if (data.success) {
-        setApps(data.apps);
+      const appsData = await appsRes.json();
+      const usersData = await usersRes.json();
+
+      if (appsData.success) {
+        setApps(appsData.apps);
+      }
+      if (usersData.success) {
+        setUsers(usersData.users);
       }
     } catch (error) {
-      console.error('Error fetching apps:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleAddApp = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-      const res = await fetch('/api/admin/apps', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        setApps([...apps, data.app]);
-        setShowAddModal(false);
-        setFormData({
-          name: '',
-          slug: '',
-          description: '',
-          icon: 'grid',
-          targetType: 'admin',
-          route: '',
-        });
-      }
-    } catch (error) {
-      console.error('Error creating app:', error);
     }
   };
 
@@ -88,44 +82,115 @@ export default function ManageAppsPage() {
     }
   };
 
-  const handleDelete = async (appId: string) => {
-    if (!confirm('Are you sure you want to delete this app?')) {
-      return;
+  const openAllocationModal = (app: AppWithPermissions) => {
+    setSelectedApp(app);
+    setAllocationType('group');
+    setAllocationData({
+      userId: '',
+      groupType: '',
+      classLevel: '',
+      adminType: '',
+    });
+    setShowAllocationModal(true);
+  };
+
+  const handleAllocate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedApp) return;
+
+    let permissionData: any = { appId: selectedApp.id };
+
+    if (allocationType === 'individual') {
+      permissionData.userId = allocationData.userId;
+    } else {
+      switch (allocationData.groupType) {
+        case 'all_parents':
+          permissionData.role = 'parent';
+          break;
+        case 'all_students':
+          permissionData.role = 'student';
+          break;
+        case 'all_admins':
+          permissionData.role = 'admin';
+          break;
+        case 'class_students':
+          permissionData.role = 'student';
+          permissionData.classLevels = [allocationData.classLevel];
+          break;
+        case 'class_parents':
+          permissionData.targetRole = 'parent';
+          permissionData.classLevels = [allocationData.classLevel];
+          break;
+        case 'admin_type':
+          permissionData.role = 'admin';
+          permissionData.adminType = allocationData.adminType;
+          break;
+      }
     }
 
     try {
-      const res = await fetch(`/api/admin/apps/${appId}`, {
+      const res = await fetch('/api/admin/permissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(permissionData),
+      });
+
+      if (res.ok) {
+        await fetchData(); // Refresh data
+        setShowAllocationModal(false);
+      }
+    } catch (error) {
+      console.error('Error allocating app:', error);
+    }
+  };
+
+  const handleRemovePermission = async (permissionId: string) => {
+    if (!confirm('Remove this allocation?')) return;
+
+    try {
+      const res = await fetch(`/api/admin/permissions/${permissionId}`, {
         method: 'DELETE',
       });
 
       if (res.ok) {
-        setApps(apps.filter(app => app.id !== appId));
+        await fetchData();
       }
     } catch (error) {
-      console.error('Error deleting app:', error);
+      console.error('Error removing permission:', error);
     }
+  };
+
+  const getPermissionLabel = (perm: AppPermission): string => {
+    if (perm.userId) {
+      const user = users.find(u => u.id === perm.userId);
+      return user ? `${user.firstName} ${user.lastName} (Individual)` : 'Unknown User';
+    }
+    if (perm.classLevels && perm.classLevels.length > 0) {
+      const classLabel = CLASS_LEVELS.find(c => c.value === perm.classLevels![0])?.label || perm.classLevels[0];
+      if (perm.targetRole === 'parent') {
+        return `Parents of ${classLabel} students`;
+      }
+      return `${classLabel} Students`;
+    }
+    if (perm.adminType) {
+      return `All ${perm.adminType.charAt(0).toUpperCase() + perm.adminType.slice(1)}s`;
+    }
+    if (perm.role === 'parent') return 'All Parents';
+    if (perm.role === 'student') return 'All Students';
+    if (perm.role === 'admin') return 'All Admins';
+    return 'Unknown';
   };
 
   const adminApps = apps.filter(app => app.targetType === 'admin');
   const clientApps = apps.filter(app => app.targetType === 'client');
-
-  const iconOptions = [
-    'grid', 'users', 'user', 'user-plus', 'layers', 'credit-card',
-    'wallet', 'bell', 'megaphone', 'award', 'file-text', 'settings',
-    'shield', 'home', 'school',
-  ];
 
   return (
     <DashboardLayout title="Manage Apps">
       <div className={styles.header}>
         <div>
           <h2>App Management</h2>
-          <p className="text-muted">Create, edit, and manage apps for the portal</p>
+          <p className="text-muted">Allocate apps to users and manage access</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
-          <Icons.Plus size={18} />
-          Add New App
-        </button>
       </div>
 
       {loading ? (
@@ -140,50 +205,76 @@ export default function ManageAppsPage() {
               <Icons.Shield size={20} />
               Admin Apps ({adminApps.length})
             </h3>
-            <div className={styles.appsGrid}>
-              {adminApps.map((app) => {
-                const Icon = getIcon(app.icon);
-                return (
-                  <div key={app.id} className={`${styles.appCard} ${!app.isActive ? styles.inactive : ''}`}>
-                    <div className={styles.appHeader}>
-                      <div className={styles.appIcon}>
-                        <Icon size={24} />
+            <p className={styles.sectionDesc}>Apps for school staff (teachers, accountants, registrars)</p>
+
+            {adminApps.length === 0 ? (
+              <div className={styles.emptyState}>
+                <Icons.Grid size={48} />
+                <p>No admin apps available</p>
+              </div>
+            ) : (
+              <div className={styles.appsGrid}>
+                {adminApps.map((app) => {
+                  const Icon = getIcon(app.icon);
+                  return (
+                    <div key={app.id} className={`${styles.appCard} ${!app.isActive ? styles.inactive : ''}`}>
+                      <div className={styles.appHeader}>
+                        <div className={styles.appIcon}>
+                          <Icon size={24} />
+                        </div>
+                        <div className={styles.appStatus}>
+                          <span className={`badge ${app.isActive ? 'badge-success' : 'badge-error'}`}>
+                            {app.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
                       </div>
-                      <div className={styles.appBadges}>
-                        {app.isSystemApp && (
-                          <span className="badge badge-primary">System</span>
+
+                      <h4>{app.name}</h4>
+                      <p className={styles.appDesc}>{app.description}</p>
+
+                      {/* Current Allocations */}
+                      <div className={styles.allocations}>
+                        <span className={styles.allocationLabel}>Allocated to:</span>
+                        {app.permissions && app.permissions.length > 0 ? (
+                          <div className={styles.allocationTags}>
+                            {app.permissions.map((perm) => (
+                              <span key={perm.id} className={styles.allocationTag}>
+                                {getPermissionLabel(perm)}
+                                <button
+                                  onClick={() => handleRemovePermission(perm.id)}
+                                  className={styles.removeTag}
+                                >
+                                  <Icons.X size={12} />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className={styles.noAllocations}>No allocations</span>
                         )}
-                        <span className={`badge ${app.isActive ? 'badge-success' : 'badge-error'}`}>
-                          {app.isActive ? 'Active' : 'Inactive'}
-                        </span>
+                      </div>
+
+                      <div className={styles.appActions}>
+                        <button
+                          onClick={() => openAllocationModal(app)}
+                          className="btn btn-sm btn-primary"
+                          disabled={!app.isActive}
+                        >
+                          <Icons.UserPlus size={14} />
+                          Allocate
+                        </button>
+                        <button
+                          onClick={() => handleToggleActive(app.id, app.isActive)}
+                          className={`btn btn-sm ${app.isActive ? 'btn-outline' : 'btn-success'}`}
+                        >
+                          {app.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
                       </div>
                     </div>
-                    <h4>{app.name}</h4>
-                    <p>{app.description}</p>
-                    <div className={styles.appActions}>
-                      <Link href={`/super-admin/permissions?app=${app.id}`} className="btn btn-sm btn-outline">
-                        <Icons.Shield size={14} />
-                        Permissions
-                      </Link>
-                      <button
-                        onClick={() => handleToggleActive(app.id, app.isActive)}
-                        className={`btn btn-sm ${app.isActive ? 'btn-outline' : 'btn-success'}`}
-                      >
-                        {app.isActive ? 'Disable' : 'Enable'}
-                      </button>
-                      {!app.isSystemApp && (
-                        <button
-                          onClick={() => handleDelete(app.id)}
-                          className="btn btn-sm btn-danger"
-                        >
-                          <Icons.Trash size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           {/* Client Apps */}
@@ -192,144 +283,204 @@ export default function ManageAppsPage() {
               <Icons.Users size={20} />
               Client Apps ({clientApps.length})
             </h3>
-            <div className={styles.appsGrid}>
-              {clientApps.map((app) => {
-                const Icon = getIcon(app.icon);
-                return (
-                  <div key={app.id} className={`${styles.appCard} ${!app.isActive ? styles.inactive : ''}`}>
-                    <div className={styles.appHeader}>
-                      <div className={styles.appIcon}>
-                        <Icon size={24} />
+            <p className={styles.sectionDesc}>Apps for parents and students</p>
+
+            {clientApps.length === 0 ? (
+              <div className={styles.emptyState}>
+                <Icons.Grid size={48} />
+                <p>No client apps available</p>
+              </div>
+            ) : (
+              <div className={styles.appsGrid}>
+                {clientApps.map((app) => {
+                  const Icon = getIcon(app.icon);
+                  return (
+                    <div key={app.id} className={`${styles.appCard} ${!app.isActive ? styles.inactive : ''}`}>
+                      <div className={styles.appHeader}>
+                        <div className={styles.appIcon}>
+                          <Icon size={24} />
+                        </div>
+                        <div className={styles.appStatus}>
+                          <span className={`badge ${app.isActive ? 'badge-success' : 'badge-error'}`}>
+                            {app.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
                       </div>
-                      <div className={styles.appBadges}>
-                        {app.isSystemApp && (
-                          <span className="badge badge-primary">System</span>
+
+                      <h4>{app.name}</h4>
+                      <p className={styles.appDesc}>{app.description}</p>
+
+                      {/* Current Allocations */}
+                      <div className={styles.allocations}>
+                        <span className={styles.allocationLabel}>Allocated to:</span>
+                        {app.permissions && app.permissions.length > 0 ? (
+                          <div className={styles.allocationTags}>
+                            {app.permissions.map((perm) => (
+                              <span key={perm.id} className={styles.allocationTag}>
+                                {getPermissionLabel(perm)}
+                                <button
+                                  onClick={() => handleRemovePermission(perm.id)}
+                                  className={styles.removeTag}
+                                >
+                                  <Icons.X size={12} />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className={styles.noAllocations}>No allocations</span>
                         )}
-                        <span className={`badge ${app.isActive ? 'badge-success' : 'badge-error'}`}>
-                          {app.isActive ? 'Active' : 'Inactive'}
-                        </span>
+                      </div>
+
+                      <div className={styles.appActions}>
+                        <button
+                          onClick={() => openAllocationModal(app)}
+                          className="btn btn-sm btn-primary"
+                          disabled={!app.isActive}
+                        >
+                          <Icons.UserPlus size={14} />
+                          Allocate
+                        </button>
+                        <button
+                          onClick={() => handleToggleActive(app.id, app.isActive)}
+                          className={`btn btn-sm ${app.isActive ? 'btn-outline' : 'btn-success'}`}
+                        >
+                          {app.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
                       </div>
                     </div>
-                    <h4>{app.name}</h4>
-                    <p>{app.description}</p>
-                    <div className={styles.appActions}>
-                      <Link href={`/super-admin/permissions?app=${app.id}`} className="btn btn-sm btn-outline">
-                        <Icons.Shield size={14} />
-                        Permissions
-                      </Link>
-                      <button
-                        onClick={() => handleToggleActive(app.id, app.isActive)}
-                        className={`btn btn-sm ${app.isActive ? 'btn-outline' : 'btn-success'}`}
-                      >
-                        {app.isActive ? 'Disable' : 'Enable'}
-                      </button>
-                      {!app.isSystemApp && (
-                        <button
-                          onClick={() => handleDelete(app.id)}
-                          className="btn btn-sm btn-danger"
-                        >
-                          <Icons.Trash size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
         </>
       )}
 
-      {/* Add App Modal */}
-      {showAddModal && (
+      {/* Allocation Modal */}
+      {showAllocationModal && selectedApp && (
         <div className={styles.modal}>
           <div className={styles.modalContent}>
             <div className={styles.modalHeader}>
-              <h3>Add New App</h3>
-              <button onClick={() => setShowAddModal(false)} className={styles.closeBtn}>
+              <h3>Allocate: {selectedApp.name}</h3>
+              <button onClick={() => setShowAllocationModal(false)} className={styles.closeBtn}>
                 <Icons.X size={24} />
               </button>
             </div>
-            <form onSubmit={handleAddApp}>
-              <div className="form-group">
-                <label>App Name</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g., Attendance Tracker"
-                  required
-                />
-              </div>
 
-              <div className="form-group">
-                <label>Slug (URL identifier)</label>
-                <input
-                  type="text"
-                  value={formData.slug}
-                  onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
-                  placeholder="e.g., attendance-tracker"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Brief description of the app"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Target Type</label>
-                <select
-                  value={formData.targetType}
-                  onChange={(e) => setFormData({ ...formData, targetType: e.target.value as 'admin' | 'client' })}
+            <form onSubmit={handleAllocate}>
+              {/* Allocation Type Toggle */}
+              <div className={styles.allocationTypeToggle}>
+                <button
+                  type="button"
+                  className={`${styles.toggleBtn} ${allocationType === 'group' ? styles.active : ''}`}
+                  onClick={() => setAllocationType('group')}
                 >
-                  <option value="admin">Admin App (for staff)</option>
-                  <option value="client">Client App (for parents/students)</option>
-                </select>
+                  <Icons.Users size={18} />
+                  Group
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.toggleBtn} ${allocationType === 'individual' ? styles.active : ''}`}
+                  onClick={() => setAllocationType('individual')}
+                >
+                  <Icons.User size={18} />
+                  Individual
+                </button>
               </div>
 
-              <div className="form-group">
-                <label>Icon</label>
-                <div className={styles.iconGrid}>
-                  {iconOptions.map((icon) => {
-                    const IconComp = getIcon(icon);
-                    return (
-                      <button
-                        key={icon}
-                        type="button"
-                        className={`${styles.iconOption} ${formData.icon === icon ? styles.selected : ''}`}
-                        onClick={() => setFormData({ ...formData, icon })}
-                      >
-                        <IconComp size={20} />
-                      </button>
-                    );
-                  })}
+              {allocationType === 'individual' ? (
+                <div className="form-group">
+                  <label>Select User</label>
+                  <select
+                    value={allocationData.userId}
+                    onChange={(e) => setAllocationData({ ...allocationData, userId: e.target.value })}
+                    required
+                  >
+                    <option value="">-- Select a user --</option>
+                    {users.filter(u => u.role !== 'super_admin').map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.firstName} {user.lastName} ({user.role})
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="form-group">
+                    <label>Select Group</label>
+                    <select
+                      value={allocationData.groupType}
+                      onChange={(e) => setAllocationData({
+                        ...allocationData,
+                        groupType: e.target.value,
+                        classLevel: '',
+                        adminType: '',
+                      })}
+                      required
+                    >
+                      <option value="">-- Select a group --</option>
+                      <optgroup label="All Users by Role">
+                        <option value="all_parents">All Parents</option>
+                        <option value="all_students">All Students</option>
+                        <option value="all_admins">All Admins</option>
+                      </optgroup>
+                      <optgroup label="By Class">
+                        <option value="class_students">Students in a specific class</option>
+                        <option value="class_parents">Parents of students in a specific class</option>
+                      </optgroup>
+                      <optgroup label="By Admin Type">
+                        <option value="admin_type">Specific admin type (Teachers, Accountants, etc.)</option>
+                      </optgroup>
+                    </select>
+                  </div>
 
-              <div className="form-group">
-                <label>Route Path</label>
-                <input
-                  type="text"
-                  value={formData.route}
-                  onChange={(e) => setFormData({ ...formData, route: e.target.value })}
-                  placeholder={formData.targetType === 'admin' ? '/admin/apps/...' : '/dashboard/apps/...'}
-                  required
-                />
-              </div>
+                  {/* Class Level Selector */}
+                  {(allocationData.groupType === 'class_students' || allocationData.groupType === 'class_parents') && (
+                    <div className="form-group">
+                      <label>Select Class</label>
+                      <select
+                        value={allocationData.classLevel}
+                        onChange={(e) => setAllocationData({ ...allocationData, classLevel: e.target.value as ClassLevel })}
+                        required
+                      >
+                        <option value="">-- Select a class --</option>
+                        {CLASS_LEVELS.map((level) => (
+                          <option key={level.value} value={level.value}>
+                            {level.label} ({level.category})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Admin Type Selector */}
+                  {allocationData.groupType === 'admin_type' && (
+                    <div className="form-group">
+                      <label>Select Admin Type</label>
+                      <select
+                        value={allocationData.adminType}
+                        onChange={(e) => setAllocationData({ ...allocationData, adminType: e.target.value as AdminType })}
+                        required
+                      >
+                        <option value="">-- Select admin type --</option>
+                        <option value="teacher">Teachers</option>
+                        <option value="accountant">Accountants</option>
+                        <option value="registrar">Registrars</option>
+                        <option value="principal">Principals</option>
+                        <option value="general">General Staff</option>
+                      </select>
+                    </div>
+                  )}
+                </>
+              )}
 
               <div className={styles.modalActions}>
-                <button type="button" className="btn btn-outline" onClick={() => setShowAddModal(false)}>
+                <button type="button" className="btn btn-outline" onClick={() => setShowAllocationModal(false)}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Create App
+                  Allocate App
                 </button>
               </div>
             </form>
