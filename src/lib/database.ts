@@ -461,28 +461,20 @@ export const FeePayments = {
 // ============================================
 
 export async function seedDefaultData() {
-  const existingApps = await db.select().from(apps).limit(1);
-  if (existingApps.length > 0) return;
+  // Only seed the Admissions app as a core system app
+  const existingAdmissions = await db.select().from(apps).where(eq(apps.slug, 'admissions')).limit(1);
 
-  const adminApps = [
-    { name: 'Student Management', slug: 'student-management', description: 'Manage student records, enrollment, and profiles', icon: 'users', targetType: 'admin' as const, route: '/admin/apps/student-management', isSystemApp: true },
-    { name: 'Parent Management', slug: 'parent-management', description: 'Manage parent records and student-parent relationships', icon: 'user-plus', targetType: 'admin' as const, route: '/admin/apps/parent-management', isSystemApp: true },
-    { name: 'Class Management', slug: 'class-management', description: 'Manage classes, sections, and class assignments', icon: 'layers', targetType: 'admin' as const, route: '/admin/apps/class-management', isSystemApp: true },
-    { name: 'Fee Management', slug: 'fee-management', description: 'Manage fee structures, payments, and receipts', icon: 'credit-card', targetType: 'admin' as const, route: '/admin/apps/fee-management', isSystemApp: true },
-    { name: 'Announcements', slug: 'announcements-admin', description: 'Create and manage school announcements', icon: 'megaphone', targetType: 'admin' as const, route: '/admin/apps/announcements', isSystemApp: true },
-    { name: 'Results Entry', slug: 'results-entry', description: 'Enter and manage student results', icon: 'file-text', targetType: 'admin' as const, route: '/admin/apps/results-entry', isSystemApp: true },
-  ];
-
-  const clientApps = [
-    { name: 'View Results', slug: 'view-results', description: 'View academic results and report cards', icon: 'award', targetType: 'client' as const, route: '/dashboard/apps/view-results', isSystemApp: true },
-    { name: 'Pay Fees', slug: 'pay-fees', description: 'View fee status and make payments', icon: 'wallet', targetType: 'client' as const, route: '/dashboard/apps/pay-fees', isSystemApp: true },
-    { name: 'Announcements', slug: 'announcements', description: 'View school announcements and notices', icon: 'bell', targetType: 'client' as const, route: '/dashboard/apps/announcements', isSystemApp: true },
-    { name: 'Profile', slug: 'profile', description: 'View and update your profile', icon: 'user', targetType: 'client' as const, route: '/dashboard/apps/profile', isSystemApp: true },
-  ];
-
-  for (const app of [...adminApps, ...clientApps]) {
-    await db.insert(apps).values(app);
+  if (existingAdmissions.length === 0) {
+    await db.insert(apps).values({
+      name: 'Admissions',
+      slug: 'admissions',
+      description: 'Apply for student admission and track application status',
+      icon: 'user-plus',
+      targetType: 'client' as const,
+      route: '/apps/admissions',
+      isSystemApp: true,
+      isActive: true,
+    });
+    console.log('Admissions app seeded');
   }
-
-  console.log('Default apps seeded successfully');
 }

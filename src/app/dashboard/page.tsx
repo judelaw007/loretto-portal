@@ -78,7 +78,9 @@ export default function ClientDashboard() {
           <h2>Welcome back, {user.firstName}!</h2>
           <p>
             {isParent
-              ? `You have ${children.length} ${children.length === 1 ? 'child' : 'children'} registered.`
+              ? children.length > 0
+                ? `You have ${children.length} ${children.length === 1 ? 'child' : 'children'} registered.`
+                : 'No children linked to your account yet.'
               : `Class: ${getClassLabel((user as Student).classLevel)}`
             }
           </p>
@@ -93,89 +95,41 @@ export default function ClientDashboard() {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Quick Info Cards */}
       <div className={styles.statsGrid}>
         {isParent && (
-          <>
-            <div className={styles.statCard}>
-              <div className={styles.statIcon} style={{ background: 'var(--primary)' }}>
-                <Icons.Users size={24} />
-              </div>
-              <div className={styles.statInfo}>
-                <span className={styles.statValue}>{children.length}</span>
-                <span className={styles.statLabel}>Children</span>
-              </div>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon} style={{ background: 'var(--primary)' }}>
+              <Icons.Users size={24} />
             </div>
-            <div className={styles.statCard}>
-              <div className={styles.statIcon} style={{ background: 'var(--success)' }}>
-                <Icons.Award size={24} />
-              </div>
-              <div className={styles.statInfo}>
-                <span className={styles.statValue}>-</span>
-                <span className={styles.statLabel}>Results Available</span>
-              </div>
+            <div className={styles.statInfo}>
+              <span className={styles.statValue}>{children.length}</span>
+              <span className={styles.statLabel}>Children</span>
             </div>
-            <div className={styles.statCard}>
-              <div className={styles.statIcon} style={{ background: 'var(--warning)' }}>
-                <Icons.Wallet size={24} />
-              </div>
-              <div className={styles.statInfo}>
-                <span className={styles.statValue}>-</span>
-                <span className={styles.statLabel}>Pending Fees</span>
-              </div>
-            </div>
-            <div className={styles.statCard}>
-              <div className={styles.statIcon} style={{ background: 'var(--info)' }}>
-                <Icons.Bell size={24} />
-              </div>
-              <div className={styles.statInfo}>
-                <span className={styles.statValue}>0</span>
-                <span className={styles.statLabel}>New Announcements</span>
-              </div>
-            </div>
-          </>
+          </div>
         )}
 
         {isStudent && (
-          <>
-            <div className={styles.statCard}>
-              <div className={styles.statIcon} style={{ background: 'var(--primary)' }}>
-                <Icons.Layers size={24} />
-              </div>
-              <div className={styles.statInfo}>
-                <span className={styles.statValue}>{getClassLabel((user as Student).classLevel)}</span>
-                <span className={styles.statLabel}>Current Class</span>
-              </div>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon} style={{ background: 'var(--primary)' }}>
+              <Icons.Layers size={24} />
             </div>
-            <div className={styles.statCard}>
-              <div className={styles.statIcon} style={{ background: 'var(--success)' }}>
-                <Icons.Award size={24} />
-              </div>
-              <div className={styles.statInfo}>
-                <span className={styles.statValue}>-</span>
-                <span className={styles.statLabel}>Average Score</span>
-              </div>
+            <div className={styles.statInfo}>
+              <span className={styles.statValue}>{getClassLabel((user as Student).classLevel)}</span>
+              <span className={styles.statLabel}>Current Class</span>
             </div>
-            <div className={styles.statCard}>
-              <div className={styles.statIcon} style={{ background: 'var(--warning)' }}>
-                <Icons.Wallet size={24} />
-              </div>
-              <div className={styles.statInfo}>
-                <span className={styles.statValue}>-</span>
-                <span className={styles.statLabel}>Fee Status</span>
-              </div>
-            </div>
-            <div className={styles.statCard}>
-              <div className={styles.statIcon} style={{ background: 'var(--info)' }}>
-                <Icons.Bell size={24} />
-              </div>
-              <div className={styles.statInfo}>
-                <span className={styles.statValue}>0</span>
-                <span className={styles.statLabel}>Announcements</span>
-              </div>
-            </div>
-          </>
+          </div>
         )}
+
+        <div className={styles.statCard}>
+          <div className={styles.statIcon} style={{ background: 'var(--secondary)' }}>
+            <Icons.Grid size={24} />
+          </div>
+          <div className={styles.statInfo}>
+            <span className={styles.statValue}>{apps.length}</span>
+            <span className={styles.statLabel}>Available Apps</span>
+          </div>
+        </div>
       </div>
 
       {/* Children Cards (for parents) */}
@@ -193,65 +147,44 @@ export default function ClientDashboard() {
                   <p className={styles.childClass}>{getClassLabel(child.classLevel)}</p>
                   <p className={styles.childId}>ID: {child.studentId}</p>
                 </div>
-                <div className={styles.childActions}>
-                  <Link href={`/dashboard/child/${child.id}`} className="btn btn-sm btn-outline">
-                    View Details
-                  </Link>
-                </div>
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {/* Quick Apps */}
+      {/* My Apps */}
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
-          <h3>Quick Access</h3>
-          <Link href="/dashboard/apps" className={styles.viewAll}>
-            View All Apps
-            <Icons.ChevronRight size={16} />
-          </Link>
-        </div>
-        <div className={styles.appsGrid}>
-          {apps.map((app) => {
-            const Icon = getIcon(app.icon);
-            return (
-              <Link key={app.id} href={app.route} className={styles.appCard}>
-                <div className={styles.appIcon}>
-                  <Icon size={28} />
-                </div>
-                <h4>{app.name}</h4>
-                <p>{app.description}</p>
-              </Link>
-            );
-          })}
-
-          {apps.length === 0 && (
-            <div className={styles.emptyApps}>
-              <Icons.Grid size={48} />
-              <p>No apps available yet.</p>
-              <p className="text-sm text-muted">Contact the administrator if you need access to specific apps.</p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Recent Announcements */}
-      <section className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <h3>Recent Announcements</h3>
-          <Link href="/dashboard/apps/announcements" className={styles.viewAll}>
+          <h3>My Apps</h3>
+          <Link href="/apps" className={styles.viewAll}>
             View All
             <Icons.ChevronRight size={16} />
           </Link>
         </div>
-        <div className={styles.announcementsList}>
-          <div className={styles.emptyState}>
-            <Icons.Bell size={32} />
-            <p>No announcements yet</p>
+
+        {apps.length > 0 ? (
+          <div className={styles.appsGrid}>
+            {apps.slice(0, 4).map((app) => {
+              const Icon = getIcon(app.icon);
+              return (
+                <Link key={app.id} href={app.route} className={styles.appCard}>
+                  <div className={styles.appIcon}>
+                    <Icon size={28} />
+                  </div>
+                  <h4>{app.name}</h4>
+                  <p>{app.description}</p>
+                </Link>
+              );
+            })}
           </div>
-        </div>
+        ) : (
+          <div className={styles.emptyApps}>
+            <Icons.Grid size={48} />
+            <p>No apps available yet.</p>
+            <p className="text-sm text-muted">Contact the administrator to get access to apps.</p>
+          </div>
+        )}
       </section>
     </DashboardLayout>
   );
